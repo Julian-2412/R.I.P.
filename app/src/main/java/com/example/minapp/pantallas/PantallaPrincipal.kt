@@ -62,7 +62,9 @@ Scaffold(
     bottomBar = {
         BarraInferior(
             onInicioClick = eventoPantallaInicio,
-            onPerfilClick = eventoPantallaPerfil
+            onPerfilClick = eventoPantallaPerfil,
+            mostrarInicio = true,
+            mostrarPerfil = false 
         )
     },
 

@@ -3,11 +3,18 @@ package com.example.minapp.logica
 import com.example.minapp.negocio.FinanzasViewModel
 import com.example.minapp.pantallas.PantallaPrincipal
 import com.example.minapp.pantallas.PantallaAgregarRegistro
+import com.example.minapp.pantallas.PantallaHistorial
+import com.example.minapp.pantallas.PantallaEditarRegistro
+import com.example.minapp.pantallas.PantallaPerfil
 
 import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
+import androidx.compose.runtime.collectAsState
+
 
 @Composable 
 /*Para poder navegar entre pantallas hay que definir una navegación que indica a los "lugares"
@@ -37,10 +44,25 @@ fun Navegacion (viewModel : FinanzasViewModel){
         
         /*Definción de la 2d ruta */
         composable("perfil"){
-            /*PantallaPerfil(
-                eventoPantallaInicio ={navController.navigate("inicio")}
-                eventoPantallaPerfil = {},
-            )*/
+            PantallaPerfil(
+                logeado = viewModel.usuarioLogeado, 
+                mensajError  = viewModel.mensajError,
+
+                onLoginClick = {
+                    usuario, clave -> viewModel.ejecutaLogin(usuario, clave)
+                },
+                onExportarClick = {
+                    
+                },
+                onImportarClick = {
+                    viewModel.importarDatos()
+                },
+                onCerrarSesionClick = {
+                    viewModel.cerrarSesion()
+                },
+                eventoPantallaInicio = {navController.navigate("inicio")},
+                eventoPantallaPerfil = {}
+            )
         }
 
         composable("agregar_registro"){
@@ -55,6 +77,33 @@ fun Navegacion (viewModel : FinanzasViewModel){
         }
 
         composable("historial_completo"){
+            PantallaHistorial(
+                lista = viewModel.listaTransacciones.collectAsState().value,
+                eventoEditarRegistro = {idRecibido -> navController.navigate("editar_registro/$idRecibido")},
+                eventoVolver = {navController.popBackStack()}
+            )
+        }
+
+        composable(
+            route = "editar_registro/{id}", /*Indica que es una ruta variable */
+            arguments = listOf(
+                navArgument("id") {type = NavType.StringType} /*Define el argumento como un texto */
+            )
+        ){backStackEntry ->
+            /*Atrapa el id que viene en la ruta */
+            val idRecibido = backStackEntry.arguments?.getString("id") ?: ""
+            
+            PantallaEditarRegistro(
+                idRegistro = idRecibido,
+                viewModel = viewModel,
+                eventoGuardar = {
+                    id, titulo, monto, fecha, descripcion ->
+                    viewModel.editarTransaccion(id, titulo, monto, fecha, descripcion)
+                    navController.popBackStack()
+                },
+                eventoCancelar = {navController.popBackStack()},
+                eventoVolver = {navController.popBackStack()}
+            )
         }
     }
 }

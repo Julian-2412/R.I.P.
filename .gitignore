@@ -1,3 +1,5 @@
+*.hprof
+
 # Build artifacts
 bin/
 gen/
@@ -32,8 +34,3 @@ Thumbs.db
 *.bak
 *.swp
 
-.gradle/
-build/
-app/build/
-*.apk
-.idea/

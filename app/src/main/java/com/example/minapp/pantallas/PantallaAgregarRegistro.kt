@@ -237,7 +237,7 @@ fun PantallaAgregarRegistro(
                 onValueChange = {descripcionInput = it},
                 label = {Text("Descripción")},
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                maxLines = 4 
             )
 
             Spacer(modifier = Modifier.weight(1f))
