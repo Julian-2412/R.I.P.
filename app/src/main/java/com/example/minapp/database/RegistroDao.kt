@@ -26,6 +26,9 @@ interface RegistroDao{
     @Query("UPDATE transacciones SET estado = 'SINCRONIZADO' WHERE id = :id")
     suspend fun marcarComoSincronizado(id : String)
 
+    @Query("UPDATE transacciones SET estado = 'ELIMINADO' WHERE id = :id")
+    suspend fun marcarComoEliminado(id: String)
+
     /*Trae todos los registros, glow es una conexión directa con la base de datos, ayuda a no
     estar preguntando todo el rato si ha sido actualizada sino que queda allí quieta
     esperando que un movimiento en la base, que es innmediatamente empujado */   

@@ -57,8 +57,7 @@ fun PantallaPerfil(
         mensajError?.let{ textoDeError ->
                 snackbarHostState.showSnackbar(
                     message = textoDeError,
-                    actionLabel = "Entendido",
-                    duration = SnackbarDuration.Short
+                    actionLabel = "Entendido"
                 )
         }
     }

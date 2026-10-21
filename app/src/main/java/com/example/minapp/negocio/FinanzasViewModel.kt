@@ -16,6 +16,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import java.io.IOException
+import retrofit2.HttpException
 
 class FinanzasViewModel(private val dao : RegistroDao) : ViewModel(){
     /*Acá se trae todos los registros y se mantiene expectante de los cambios que se presenten
@@ -62,18 +63,21 @@ class FinanzasViewModel(private val dao : RegistroDao) : ViewModel(){
     var usuarioLogeado by mutableStateOf(false)
         private set /*Esta instrucción sirve para evitar que la variable sea modificada fuera de una función */
     
-    private var jwToken : String? = null /*Acá se almacena el token proviniente del servidor */
+    private var usuarioIdActual: String? = null
     
     var mensajError by mutableStateOf<String?>(null)
 
     var cargandoDatos  by mutableStateOf(false)
+
+    private var jwtToken: String? = null
 
     fun inicioSesionExitoso(){
         usuarioLogeado = true
     }
 
     fun cerrarSesion(){
-        jwToken = null
+        usuarioIdActual = null
+        jwtToken = null
         usuarioLogeado = false
     }
 
@@ -92,6 +96,12 @@ class FinanzasViewModel(private val dao : RegistroDao) : ViewModel(){
             
             // 2. Le ordenamos al DAO que lo guarde de forma segura en segundo plano
             dao.guardarActualizar(nuevoRegistro)
+        }
+    }
+
+    fun eliminarTransaccion(id: String) {
+        viewModelScope.launch {
+            dao.marcarComoEliminado(id)
         }
     }
 
@@ -128,52 +138,92 @@ class FinanzasViewModel(private val dao : RegistroDao) : ViewModel(){
         viewModelScope.launch{
             try{
                 mensajError = null /*Para limpiar mensajes viejos */
-
+                usuarioIdActual = null
+                jwtToken = null
+                usuarioLogeado = false
                 /*Se envia el JSON al servidor */
-                val respuesta = ProveedorNetwork.api.iniciarSesion(LoginRequest(usuario, contrasena))
 
-                if(respuesta.exito && respuesta.token.isNotBlank()){
-                    /*Guardamos el token */
-                    jwToken = respuesta.token
+                val respuesta = ProveedorNetwork.api.iniciarSesion(
+                    LoginRequest(nombreUsuario = usuario, password = contrasena)
+                )
 
+                val token = respuesta.token?.trim()?.takeIf { it.isNotEmpty() }
+                val usuarioRespuesta = respuesta.usuario
+
+                if(usuarioRespuesta?.id != null && token != null){
+                    usuarioIdActual = usuarioRespuesta.id.toString()
+                    jwtToken = token
                     usuarioLogeado = true
                 }else{
-                    mensajError = "Credenciales erroneas"
+                    mensajError = respuesta.mensaje
+                        ?: "El backend no devolvió el usuario y el JWT esperados."
+                }
+            }catch(e : HttpException){
+                mensajError = when(e.code()){
+                    401 -> "Usuario o contraseña incorrectos (HTTP 401)."
+                    403 -> "El servidor prohibió el inicio de sesión (HTTP 403). Revisa su configuración de seguridad."
+                    404 -> "Usuario o contraseña incorrectos."
+                    else -> "El servidor respondió con el error HTTP ${e.code()}."
                 }
             }catch(e : IOException){
                 mensajError = "No se pudo conectar al servidor"
             }catch(e : Exception){
-                mensajError = "Ocurrió un error"
+                mensajError = "Error al procesar la respuesta: ${e.localizedMessage ?: e.javaClass.simpleName}"
             }
         }
     }
 
     fun importarDatos(){
-        val tokenActual = jwToken
-        if(tokenActual == null){
-            mensajError = "Sesión finalizada, inicie sesión de nuevo"
+        val usuarioId = usuarioIdActual
+        if(usuarioId == null){
+            mensajError = "No se encontró el ID del usuario. Inicie sesión de nuevo."
             return
         }
+
+        val tokenAuth = jwtToken
+            ?.takeIf { it.isNotBlank() }
+            ?.let { "Bearer $it" }
          
+        if(tokenAuth == null){
+            mensajError = "Inicie sesión de nuevo para obtener un token."
+            return
+        }
+
         viewModelScope.launch{
             try{
                 /*Se encvia el token, con el formato estandar "Bearer" anteponiendolo */
-                val datosNube = ProveedorNetwork.api.importarRegistros(token = "Bearer ${tokenActual}")
+                val datosNube = ProveedorNetwork.api.importarRegistros(
+                    usuarioId = usuarioId,
+                    token = tokenAuth
+                )
 
                 /*Luego se inyectan en la base de datos local */
                 dao.guardarListaImportada(datosNube)
+            }catch(e : HttpException){
+                mensajError = "El servidor rechazó la importación (HTTP ${e.code()})."
+            }catch(e : IOException){
+                mensajError = "No se pudo conectar al servidor para importar los registros."
             }catch(e : Exception){
-                mensajError = "Error al importar lo registros${e.localizedMessage}"
+                mensajError = "Error al importar los registros: ${e.localizedMessage ?: e.javaClass.simpleName}"
             }
         }
     }
 
     fun exportarDatos(){
-        val tokenActual = jwToken
-        if(tokenActual == null){
-            mensajError = "Sesión finalizada, inicie sesión de nuevo"
+        val usuarioId = usuarioIdActual
+        if(usuarioId == null){
+            mensajError = "No se encontró el ID del usuario. Inicie sesión de nuevo."
             return
         }
+        val tokenAuth = jwtToken
+            ?.takeIf { it.isNotBlank() }
+            ?.let { "Bearer $it" }
+         
+        if(tokenAuth == null){
+            mensajError = "Inicie sesión de nuevo para obtener un token."
+            return
+        }
+
          viewModelScope.launch{
             try{
                 cargandoDatos = true
@@ -199,7 +249,8 @@ class FinanzasViewModel(private val dao : RegistroDao) : ViewModel(){
                 }
 
                 val respuestaServidor = ProveedorNetwork.api.exportarRegistros(
-                    token = "Bearer $tokenActual",
+                    usuarioId = usuarioId,
+                    token = tokenAuth,
                     registros = listaPendientes 
                 )
 
@@ -214,8 +265,14 @@ class FinanzasViewModel(private val dao : RegistroDao) : ViewModel(){
                 }else{
                     mensajError = "El servidor rechazó los datos: Código ${respuestaServidor.code()}"
                 }
+            }catch(e : HttpException){
+                mensajError = "El servidor rechazó la exportación (HTTP ${e.code()})."
+            }catch(e : IOException){
+                mensajError = "No se pudo conectar al servidor para exportar los registros."
             }catch(e : Exception){
-                mensajError = "Error al importar lo registros${e.localizedMessage}"
+                mensajError = "Error al exportar los registros: ${e.localizedMessage ?: e.javaClass.simpleName}"
+            }finally{
+                cargandoDatos = false
             }
         }
     }

@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -21,6 +22,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import com.example.minapp.database.EntidadRegistros
 import java.time.Instant
 import java.time.ZoneOffset
@@ -33,6 +36,7 @@ private val formateadorFecha: DateTimeFormatter = DateTimeFormatter.ofPattern("d
 fun PantallaHistorial(
     lista: List<EntidadRegistros>,
     eventoEditarRegistro: (id: String) -> Unit,
+    eventoEliminarRegistro: (id: String) -> Unit,
     eventoVolver: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -75,7 +79,8 @@ fun PantallaHistorial(
             items(lista, key = { it.id }) { transaccion ->
                 FilaTransaccion(
                     item = transaccion,
-                    onEditarClick = { eventoEditarRegistro(transaccion.id) }
+                    onEditarClick = { eventoEditarRegistro(transaccion.id) },
+                    onEliminarClick = { eventoEliminarRegistro(transaccion.id) }
                 )
             }
         }
@@ -85,7 +90,11 @@ fun PantallaHistorial(
 /* Cada renglón es una Card clicable: toda el área responde al toque */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FilaTransaccion(item: EntidadRegistros, onEditarClick: () -> Unit) {
+fun FilaTransaccion(
+    item: EntidadRegistros,
+    onEditarClick: () -> Unit,
+    onEliminarClick: () -> Unit
+) {
     /* La fecha se guarda como medianoche UTC (así la entrega el DatePicker),
        por eso se formatea con UTC y no con la zona del teléfono. */
     val fechaLegible = Instant.ofEpochMilli(item.fecha)
@@ -121,6 +130,19 @@ fun FilaTransaccion(item: EntidadRegistros, onEditarClick: () -> Unit) {
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp
                 )
+
+                IconButton(
+                    onClick = onEliminarClick,
+                    modifier = Modifier.semantics {
+                        contentDescription = "Eliminar ${item.titulo}"
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Delete,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
             }
 
             Text(

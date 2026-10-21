@@ -49,10 +49,10 @@ fun Navegacion (viewModel : FinanzasViewModel){
                 mensajError  = viewModel.mensajError,
 
                 onLoginClick = {
-                    usuario, clave -> viewModel.ejecutaLogin(usuario, clave)
+                    usuario, contrasena -> viewModel.ejecutaLogin(usuario, contrasena)
                 },
                 onExportarClick = {
-                    
+                    viewModel.exportarDatos()
                 },
                 onImportarClick = {
                     viewModel.importarDatos()
@@ -80,6 +80,7 @@ fun Navegacion (viewModel : FinanzasViewModel){
             PantallaHistorial(
                 lista = viewModel.listaTransacciones.collectAsState().value,
                 eventoEditarRegistro = {idRecibido -> navController.navigate("editar_registro/$idRecibido")},
+                eventoEliminarRegistro = {idRecibido -> viewModel.eliminarTransaccion(idRecibido)},
                 eventoVolver = {navController.popBackStack()}
             )
         }

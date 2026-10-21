@@ -5,7 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database (entities = [EntidadRegistros::class], version = 2, exportSchema = true)
+@Database (entities = [EntidadRegistros::class], version = 4, exportSchema = true)
 /*Acá ya es dónde se crea la base de datos como tal, usa la clase de EntidadRegistro 
 como plantilla para crearla, pues allí es dónde se definen las tablas, valores, ect */
 abstract class AppDatabase : RoomDatabase(){
